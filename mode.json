@@ -1,0 +1,9 @@
+{
+  "is_agent" : "0" ,// 0 or 1
+  "agent_id" : "" , // url，if is_agent==1  直接跳转
+  "agent_prompt" : "", //prompt，if is_agent==0，增加描述
+  "deep_think" : "1"  // 0,1,-1 ;在豆包中有-1,表示自动，
+  "mode" : "0", // 模型,除了kimi要填k1.5或k2，其他模型都不需要填
+}
+
+
