@@ -1,30 +1,11 @@
 import asyncio
 import shutil
-from string import Template
-import re
 from playwright.async_api import async_playwright
+import os
 
-
-async def input_async(prompt: str, timeout: float = 10) -> str | None:
-    try:
-        result = await asyncio.wait_for(
-            asyncio.to_thread(input, prompt),
-            timeout=timeout
-        )
-        return result
-    except asyncio.TimeoutError:
-        print("\n输入超时，自动设置内容")
-        return "各位请继续讨论"
-
-def add_text(text, file_name = "chat.txt"):
-    text = re.sub(r'[\n\r\t\u2028\u2029\u00A0]', ' ', str(text)) + "\n"
-    with open(file_name, "a", encoding="utf-8") as f:
-        f.write(text)
-
-
-
-
-
+# 获取当前模块所在目录
+current_dir = os.path.dirname(__file__)
+js_path = os.path.join(current_dir, "a.js")
 
 class Agent:
     def __init__(self, agent_details,index):
@@ -43,7 +24,7 @@ class Agent:
         self.page_size = {"width": 1000, "height": 800}
 
 
-        with open("a.js","r",encoding="utf-8") as f:
+        with open(js_path,"r",encoding="utf-8") as f:
             self.copy_stop_js = f.read()
 
     @classmethod
@@ -63,13 +44,15 @@ class Agent:
         p = await async_playwright().start()
 
         self.context = await p.chromium.launch_persistent_context(
-            user_data_dir=f"browser/{self.name}/root",
+            user_data_dir=f"browser/root",
             headless=False,  # 可视化调试
             args=[]  # 可添加额外启动参数
         )
         self.page = await self.context.new_page()
         await self.page.goto(self.web_url)
         input('登陆成功后，按回车键')
+
+        await self.context.close()
 
     async def  scroll(self):
         await self.page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
@@ -103,7 +86,6 @@ class Agent:
         print(f"{self.name} 实例资源已释放")
 
 
-
 class DoubaoAgent(Agent):
     def __init__(self, agent_details,index):
         super().__init__(agent_details,index)
@@ -113,7 +95,7 @@ class DoubaoAgent(Agent):
     async def load_agent(self):
         p = await async_playwright().start()
 
-        root = f"browser/{self.name}/root/"
+        root = f"browser/root/"
         user_data_dir=f"browser/{self.name}/{self.index}/"
         shutil.copytree(root, user_data_dir, dirs_exist_ok=True)
 
@@ -216,7 +198,7 @@ class KimiAgent(Agent):
     async def load_agent(self):
         p = await async_playwright().start()
 
-        root = f"browser/{self.name}/root/"
+        root = f"browser/root/"
         user_data_dir=f"browser/{self.name}/{self.index}/"
         shutil.copytree(root, user_data_dir, dirs_exist_ok=True)
 
@@ -314,7 +296,7 @@ class QwenAgent(Agent):
     async def load_agent(self):
         p = await async_playwright().start()
 
-        root = f"browser/{self.name}/root/"
+        root = f"browser/root/"
         user_data_dir=f"browser/{self.name}/{self.index}/"
         shutil.copytree(root, user_data_dir, dirs_exist_ok=True)
 
@@ -390,7 +372,7 @@ class MinimaxAgent(Agent):
     async def load_agent(self):
         p = await async_playwright().start()
 
-        root = f"browser/{self.name}/root/"
+        root = f"browser/root/"
         user_data_dir = f"browser/{self.name}/{self.index}/"
         shutil.copytree(root, user_data_dir, dirs_exist_ok=True)
 
@@ -512,7 +494,7 @@ class ChatglmAgent(Agent):
     async def load_agent(self):
         p = await async_playwright().start()
 
-        root = f"browser/{self.name}/root/"
+        root = f"browser/root/"
         user_data_dir = f"browser/{self.name}/{self.index}/"
         shutil.copytree(root, user_data_dir, dirs_exist_ok=True)
 
@@ -591,7 +573,7 @@ class DeepseekAgent(Agent):
     async def load_agent(self):
         p = await async_playwright().start()
 
-        root = f"browser/{self.name}/root/"
+        root = f"browser/root/"
         user_data_dir = f"browser/{self.name}/{self.index}/"
         shutil.copytree(root, user_data_dir, dirs_exist_ok=True)
 
@@ -664,35 +646,26 @@ class DeepseekAgent(Agent):
         send_button_selector = '//div[@class="_7436101"]'
         await self.send_message_action(message, textarea_selector, send_button_selector)
 
-
-
-async def init():
-    conf = {
-        "is_agent" : "0" ,
-        "agent_id" : "" ,
-        "agent_prompt" : '''你好''',
-        # prompt，if is_agent==0，增加提示词
-        "deep_think" : "0",    # 0,1,-1 ;在豆包中有-1,表示自动，
-        "mode" : "",   #除了kimi要填k1.5或k2，其他模型都不需要填
+class Help:
+    def __init__(self):
+        self.models = [DoubaoAgent,QwenAgent,MinimaxAgent,ChatglmAgent,DeepseekAgent,KimiAgent]
+        self.models_name = [model("","").name for model in self.models]
+        self.func = """
+        
+        cfg = {
+        "is_agent": "0",
+        "agent_id": "",
+        "agent_prompt": "你好",
+        "deep_think": "1", //是否开启深度思考
+        "mode": "k2"  // 只有kimi 需要填 k1.5或k2
     }
-
-    a =await DeepseekAgent.load(conf,"1") #在创建相同AI的agent时，必须保证index 不相同
-
-
-    return a
-
-
-async def main():
-    a = await init()
-    while True:
-        a_answer = (await a.wait_answer())["answer_text"]
-        await a.send_message(a_answer)
-
-    input()
-
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    
+        mode = await DoubaoAgent().load(cfg,index)
+        
+        await mode.send_message(message)
+        message = await mode.wait_message()
+        
+        
+        """
 
 
